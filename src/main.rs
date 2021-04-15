@@ -1,10 +1,13 @@
 mod pkg_info;
 use pkg_info::get_pkg_info;
 
+mod dates;
+
+mod bugs_scraper;
+use crate::bugs_scraper::scrape_web;
+
 use std::io;
 use std::io::prelude::*;
-//use std::thread;
-
 #[tokio::main]
 async fn main() {
 
@@ -22,26 +25,26 @@ async fn main() {
     
     for line in vecc {
         let handle = tokio::spawn(async move {
-        //s.spawn(move |_| {
-            get_pkg_info(line)
-        
-        });
-        handle.await.unwrap();
-        
-    };
-    
-    /* 
-    vecc.into_iter()
-        .map(|line| {
-            //let seline: Vec<&str> = line.split(" ").collect();
-            tokio::spawn(async move{
-                let seline: Vec<&str> = line.split(" ").collect();
-                println!("Result: {}",get_pkg_info(seline[0]));
-            });
+        //let child = thread::spawn(move || {            
+            let link = get_pkg_info(line);
+            
+            //spawn web scraping for common issues
+            if link != "" {
+                let handle = tokio::spawn(scrape_web(link));
+                
+                //wait for future object running in async
+                handle.await.unwrap();
+            }
+            
+            println!(" ");
             
         });
-    */
+        //child.join().unwrap();
+        handle.await.unwrap();
+    };
     
-    println!("Exiting Application!");
+    //
+    
+    println!("✅");
 }
 

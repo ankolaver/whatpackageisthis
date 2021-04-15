@@ -1,6 +1,8 @@
 use std::process::Command;
 use colored::*;
 
+use crate::dates::calculate_dates;
+
 pub fn get_pkg_info(line: String) -> String {
 
     //Check Linux Distro Version
@@ -17,13 +19,13 @@ pub fn get_pkg_info(line: String) -> String {
         let package_data: Vec<&str> = line.split(" ").collect();
         
         //get name of package
-        let package_name = package_data[0];
+        let package_name = if package_data[0] == "Installed" { "Box2D.x86_64" } else {package_data[0]} ;
 
-        let exec = Command::new("dnf")
-            .args(&["info",package_name])
+        let exec = Command::new("rpm")
+            .args(&["-q",package_name,"-i"])
             .output()
             .expect("failed to execute process");
-
+        
         (exec, package_name)
 
     } else if distro.contains("ubuntu") == true {
@@ -36,7 +38,7 @@ pub fn get_pkg_info(line: String) -> String {
         let exec = Command::new("apt")
             .args(&["info",package_name])
             .output()
-            .expect("failed to execute process");
+            .expect("failed to execute process for apt pkg manager");
         
         (exec, package_name)
         
@@ -51,7 +53,7 @@ pub fn get_pkg_info(line: String) -> String {
         let exec = Command::new("yay")
             .args(&["info",package_name])
             .output()
-            .expect("failed to execute process");
+            .expect("Package Manager not available");
 
         (exec, package_name)
     };
@@ -59,37 +61,45 @@ pub fn get_pkg_info(line: String) -> String {
     let (execution_str, package_name) = output;
     
     let output = String::from_utf8_lossy(&execution_str.stdout).to_string();
-    let split_str: Vec<&str> = output.split("\n").collect();
 
-    for meta in split_str {
-        let meta = String::from(meta);
-        
-        let extract = match meta.get(..11) {
-            Some(meta) => meta,
-            None => "",
-        };
-        if extract == "Description"{
-            println!("====== Package: {} ======",package_name.color("blue"));
-            println!("--{}",meta);
+    //Get description
+    let split_descript: Vec<&str> = output.split("Description :").collect();
+    
+    let pkg_descript = match split_descript.last() {
+        Some(meta) => meta,
+        None => "",
+    };
+    println!("====== Package: {} ======",package_name.truecolor(135,206,250));
+    println!("{}: {} ","Description".color("green"),pkg_descript.trim());
 
-            //extract updates from rust
-            let get_last_update = Command::new("rpm")
-            .args(&["-q",package_name,"--last"])
-            .output()
-            .expect("failed to execute process");
-            let last_update = String::from_utf8_lossy(&get_last_update.stdout).to_string();
-            
-            let split_str_2: Vec<&str> = last_update.splitn(2," ").collect();
+    let (build_date, diff ) = calculate_dates(output, "Build Date", "Build Host");
+    println!("{}{} ==> {} days since upstream dnf repo update","Last build date: ".truecolor(183,150,14),build_date, diff.num_days().to_string().truecolor(219,78,17));
+    
+    let (install_date, install_diff ) = calculate_dates(String::from_utf8_lossy(&execution_str.stdout).to_string(), "Install Date:", "Group");
+    println!("{}{} ==> {} days since you updated","Last install date: ".truecolor(255,127,80),install_date, install_diff.num_days().to_string().truecolor(219,78,17));
+    
+    let output = String::from_utf8_lossy(&execution_str.stdout).to_string();
+    let start_url = output.find("URL         :").unwrap_or(0);
+    let end_url = output.find("Bug URL").unwrap_or(output.len());
+    let repo_url = &output[start_url+14..end_url].trim().to_string();
+    
+    let output = String::from_utf8_lossy(&execution_str.stdout).to_string();
+    let start = output.find("Bug URL     :").unwrap_or(0);
+    let end = output.find("Summary").unwrap_or(output.len());
+    
+    let second_url = &mut output[start+14..end].trim().to_string();
 
-            //handle error where index does not exist?
-            let extract_2 = match split_str_2.last(){
-                Some(split_str_2) => split_str_2,
-                None => "",
-            };
+    println!("{:?} {}", repo_url, second_url);
 
-            println!("--My Last Update: {}\n",extract_2.trim());
-            break;    
+    if &repo_url.len() > &20 {
+        if &repo_url[..19] == "https://github.com/" {
+            return String::from(&repo_url[..])
+        }
+        else {
+            return String::from("")
         }
     }
-    String::from(package_name)
+    else {
+        return String::from("")
+    }
 }
