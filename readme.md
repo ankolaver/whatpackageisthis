@@ -36,7 +36,7 @@ Faced difficulty trying to import module from one file to another.
 
 Crates need to be registered prior in the `main.rs` using 
 ```rust
-mod <module1>
+mod <module1>;
 ``` 
 before using the use crate syntax to utilise another module in a sub file (a file that is not `main.rs`).
 ```rust
