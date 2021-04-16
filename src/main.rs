@@ -14,7 +14,7 @@ use std::io::prelude::*;
 async fn main() {
     let stdin = io::stdin();
 
-    //extract packages into an array
+    //extract packages into an vector
     let packages = stdin.lock().lines();
     let mut vecc = Vec::new();
 
@@ -31,6 +31,8 @@ async fn main() {
             println!(" ");
             //spawn web scraping for common issues
             if link != "" {
+                //link variable lifetime ends on it is spawned off asynchronously
+                //create a copy of variable for use later
                 let other_l = link.clone();
 
                 //Extract Versions from github and compare time taken for maintainer
@@ -46,7 +48,6 @@ async fn main() {
                 //wait for future object running in async
                 handle.await.unwrap();
 
-                
             }
             println!(" ");
         });
